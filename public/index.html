@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>文件上传</title>
+</head>
+<style>
+    #video1 {
+        border: 1px solid;
+    }
+</style>
+<body>
+<input type="file" id="btnfile">
+<input type="button" onclick="upload(0)" value="上传">
+<video id="video1" width="420" controls poster="http://localhost:3000/upload/splash.jpg">
+    您的浏览器不支持 HTML5 video 标签。
+</video>
+<script src="axios.min.js"></script>
+<script>
+  let btnFile = document.getElementById('btnfile');
+  let myVideo = document.getElementById("video1");
+  //分片上传 每个区块是1M
+  let chunkSize = 1024 * 1024;
+
+  /*
+  *  @params index: 第几个区块
+  * */
+  function upload(index) {
+    let file = btnFile.files[0];
+    // fname:原文件名 fext:文件类型
+    let [fname, fext] = file.name.split('.');
+
+    let start = index * chunkSize;
+    // 当上传文件大于 当前文件就停止上传
+    if (start > file.size) {
+      merge(file.name)
+      return;
+    }
+
+    let blob = file.slice(start, start + chunkSize);
+
+    // blobName命名规则 fname:原文件名  index:区块索引  fext:文件类型
+    let blobName = `${fname}.${index}.${fext}`;
+
+    // 把区块转成 file 文件
+    let blobFile = new File([blob], blobName);
+
+    let formData = new FormData();
+    formData.append('file', blobFile)
+
+    axios.post('/upload', formData).then(res => {
+      console.log(res);
+      upload(++index);
+    })
+  }
+
+  function merge(name) {
+    axios.post('/merge', {name: name}).then(res => {
+      console.log(res);
+      let data = res.data;
+      myVideo.src = data.url;
+      if (myVideo.paused)
+        myVideo.play();
+      else
+        myVideo.pause();
+    })
+  }
+
+</script>
+</body>
+</html>
